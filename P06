@@ -1,0 +1,52 @@
+# Cell 1 - imports
+import numpy as np
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
+import matplotlib.pyplot as plt
+
+# Cell 2 - load CIFAR-10 (10 classes of 32x32 colour images); use a subset so it is fast
+(x_train, y_train), (x_test, y_test) = keras.datasets.cifar10.load_data()
+x_train, y_train = x_train[:10000], y_train[:10000]
+x_test, y_test = x_test[:2000], y_test[:2000]
+x_train = keras.applications.vgg16.preprocess_input(x_train.astype("float32"))
+x_test = keras.applications.vgg16.preprocess_input(x_test.astype("float32"))
+print(x_train.shape, y_train.shape)        # (10000, 32, 32, 3) (10000, 1)
+
+# Cell 3 - STEP a + b: load pre-trained VGG16 and freeze it
+base_model = keras.applications.VGG16(weights="imagenet", include_top=False,
+                                      input_shape=(32, 32, 3))
+base_model.trainable = False               # freeze all layers
+
+# Cell 4 - STEP c: add custom classifier
+model = keras.Sequential([
+    base_model,
+    layers.Flatten(),
+    layers.Dense(256, activation="relu"),
+    layers.Dropout(0.5),
+    layers.Dense(10, activation="softmax")
+])
+model.compile(optimizer=keras.optimizers.Adam(1e-3),
+              loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+model.summary()
+
+# Cell 5 - STEP d: train only the new classifier layers
+history = model.fit(x_train, y_train, epochs=5, batch_size=64, validation_split=0.1)
+
+# Cell 6 - STEP e: fine-tune - unfreeze the last block with a very small learning rate
+base_model.trainable = True
+for layer in base_model.layers[:-4]:       # keep everything except last 4 layers frozen
+    layer.trainable = False
+model.compile(optimizer=keras.optimizers.Adam(1e-5),     # must re-compile after changing trainable
+              loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+history_ft = model.fit(x_train, y_train, epochs=3, batch_size=64, validation_split=0.1)
+
+# Cell 7 - evaluate and plot
+test_loss, test_acc = model.evaluate(x_test, y_test)
+print("Test Accuracy:", test_acc * 100, "%")
+acc = history.history["accuracy"] + history_ft.history["accuracy"]
+val = history.history["val_accuracy"] + history_ft.history["val_accuracy"]
+plt.plot(acc, label="Train"); plt.plot(val, label="Validation")
+plt.axvline(4, color="gray", linestyle="--", label="fine-tuning starts")
+plt.xlabel("Epoch"); plt.ylabel("Accuracy"); plt.legend();
+plt.show()
