@@ -1,0 +1,50 @@
+ Cell 1 - import packages
+import tensorflow as tf
+from tensorflow import keras
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Cell 2 - load data and look at shapes
+(x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
+print("Training images:", x_train.shape)   # (60000, 28, 28)
+print("Training labels:", y_train.shape)   # (60000,)
+print("Testing images:", x_test.shape)     # (10000, 28, 28)
+print("Testing labels:", y_test.shape)     # (10000,)
+
+# Cell 3 - normalise pixels to 0-1
+x_train = x_train.astype("float32") / 255.0
+x_test = x_test.astype("float32") / 255.0
+
+# Cell 4 - define the network
+model = keras.Sequential([
+    keras.layers.Input(shape=(28, 28)),
+    keras.layers.Flatten(),
+    keras.layers.Dense(128, activation="relu"),
+    keras.layers.Dense(10, activation="softmax")
+])
+model.summary()
+
+# Cell 5 - compile with SGD
+model.compile(optimizer=keras.optimizers.SGD(learning_rate=0.01),
+              loss="sparse_categorical_crossentropy",
+              metrics=["accuracy"])
+
+# Cell 6 - train (NOTE: history = ... is needed for plotting)
+history = model.fit(x_train, y_train, epochs=10, batch_size=32, validation_split=0.1)
+
+# Cell 7 - evaluate on unseen test data
+test_loss, test_accuracy = model.evaluate(x_test, y_test)
+print("Test Loss:", test_loss)
+print("Test Accuracy:", test_accuracy * 100, "%")
+
+# Cell 8 - plot loss and accuracy
+plt.figure(figsize=(10, 4))
+plt.subplot(1, 2, 1)
+plt.plot(history.history["loss"], label="Train")
+plt.plot(history.history["val_loss"], label="Validation")
+plt.title("Loss"); plt.xlabel("Epoch"); plt.ylabel("Loss"); plt.legend()
+plt.subplot(1, 2, 2)
+plt.plot(history.history["accuracy"], label="Train")
+plt.plot(history.history["val_accuracy"], label="Validation")
+plt.title("Accuracy"); plt.xlabel("Epoch"); plt.ylabel("Accuracy"); plt.legend()
+plt.show()
